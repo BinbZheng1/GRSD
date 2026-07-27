@@ -1,0 +1,12 @@
+name: grsd-agent
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pytorch>=2.4
+  - pytorch-cuda=12.4
+  - pip:
+      - -r requirements.txt
