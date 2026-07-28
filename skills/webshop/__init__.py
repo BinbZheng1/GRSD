@@ -1,0 +1,1 @@
+"""WebShop skill sources."""

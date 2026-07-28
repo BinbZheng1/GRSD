@@ -91,8 +91,13 @@ setup(
     package_data={
         "": ["version/*"],
         "verl": ["trainer/config/*.yaml"],
-        "agent_system": ["environments/env_package/alfworld/configs/*.yaml"],
-        "skills": ["alfworld/*", "search/*"],
+        "agent_system": [
+            "environments/env_package/alfworld/configs/*.yaml",
+            "environments/env_package/webshop/webshop/web_agent_site/templates/*.html",
+            "environments/env_package/webshop/webshop/web_agent_site/static/*.css",
+            "environments/env_package/webshop/webshop/web_agent_site/static/images/*.png",
+        ],
+        "skills": ["alfworld/*", "search/*", "webshop/*"],
     },
     include_package_data=True,
     long_description=long_description,

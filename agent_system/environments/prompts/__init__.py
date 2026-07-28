@@ -15,3 +15,4 @@
 
 from .alfworld import *
 from .search import *
+from .webshop import *

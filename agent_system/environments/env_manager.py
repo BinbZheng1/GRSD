@@ -637,7 +637,49 @@ def make_envs(config):
         envs = AlfWorldEnvironmentManager(_envs, projection_f, config)
         val_envs = AlfWorldEnvironmentManager(_val_envs, projection_f, config)
         return envs, val_envs
+    elif "webshop" in config.env.env_name.lower():
+        from agent_system.environments.env_package.webshop import build_webshop_envs, webshop_projection
+
+        webshop_root = os.path.join(
+            os.path.dirname(__file__), "env_package/webshop/webshop"
+        )
+        if config.env.webshop.use_small:
+            file_path = os.path.join(webshop_root, "data/items_shuffle_1000.json")
+            attr_path = os.path.join(webshop_root, "data/items_ins_v2_1000.json")
+        else:
+            file_path = os.path.join(webshop_root, "data/items_shuffle.json")
+            attr_path = os.path.join(webshop_root, "data/items_ins_v2.json")
+
+        env_kwargs = {
+            "observation_mode": "text",
+            "num_products": None,
+            "human_goals": config.env.webshop.human_goals,
+            "file_path": file_path,
+            "attr_path": attr_path,
+        }
+        _envs = build_webshop_envs(
+            seed=config.env.seed,
+            env_num=config.data.train_batch_size,
+            group_n=group_n,
+            is_train=True,
+            env_kwargs=env_kwargs,
+            resources_per_worker=resources_per_worker,
+        )
+        _val_envs = build_webshop_envs(
+            seed=config.env.seed + 1000,
+            env_num=config.data.val_batch_size,
+            group_n=1,
+            is_train=False,
+            env_kwargs=env_kwargs,
+            resources_per_worker=resources_per_worker,
+        )
+
+        projection_f = partial(webshop_projection)
+        envs = WebshopEnvironmentManager(_envs, projection_f, config)
+        val_envs = WebshopEnvironmentManager(_val_envs, projection_f, config)
+        return envs, val_envs
     else:
         raise ValueError(
-            f"GRSD supports only Search and ALFWorld environments, got: {config.env.env_name}"
+            "GRSD supports only Search, ALFWorld, and WebShop environments, "
+            f"got: {config.env.env_name}"
         )
