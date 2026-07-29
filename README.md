@@ -1,37 +1,46 @@
 <div align="center">
 
-# Group-Reflective Self-Distillation
+<img src="docs/grsd/grsd_flow.gif" alt="Animated GRSD flow from verified rollout groups to turn-level credit" width="100%">
 
-### Fine-grained credit assignment for agentic reinforcement learning
+<h2>Fine-grained credit assignment from an agent's own verified experience</h2>
 
 <p>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-2ea44f.svg" alt="License: Apache 2.0"></a>
-  <img src="https://img.shields.io/badge/python-3.10%2B-3776ab.svg" alt="Python 3.10+">
-  <img src="https://img.shields.io/badge/tasks-ALFWorld%20%7C%20SearchQA%20%7C%20WebShop-6f42c1.svg" alt="Three agentic tasks">
-  <img src="https://img.shields.io/badge/models-3-0f766e.svg" alt="Three model backbones">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-2ea44f?style=flat-square" alt="License: Apache 2.0"></a>
+  <img src="https://img.shields.io/badge/Python-3.10%2B-3776ab?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/Tasks-3-d45d52?style=flat-square" alt="Three agentic tasks">
+  <img src="https://img.shields.io/badge/Backbones-3-4f9d78?style=flat-square" alt="Three model backbones">
+  <img src="https://img.shields.io/github/last-commit/BinbZheng1/GRSD?style=flat-square&color=4c8fbf" alt="Last commit">
 </p>
 
-<p><strong>GRSD</strong> lets an agent learn from its own verified rollouts. It contrasts successful and failed trajectories, turns the contrast into a compact <code>DO / AVOID</code> prior, and uses that prior to assign credit at the interaction-turn level.</p>
+<p><strong>Reflect on verified rollouts. Contrast success with failure. Distill the difference into turn-level credit.</strong></p>
 
 <p>
+  <a href="#overview">Overview</a> |
   <a href="#method">Method</a> |
   <a href="#results">Results</a> |
   <a href="#reproduce">Reproduce</a> |
-  <a href="#launchers">Launchers</a> |
-  <a href="#citation">Citation</a>
+  <a href="#launchers">Launchers</a>
 </p>
 
 </div>
 
-<div align="center">
-  <img src="docs/grsd/pipeline.png" alt="GRSD pipeline: policy reflection, group-reflective prior construction, and turn-level self-distillation" width="98%">
-  <br>
-  <sub><b>GRSD pipeline.</b> Privileged guidance is used during training only; inference uses the plain task prompt.</sub>
-</div>
+## Overview
 
-## What is GRSD?
+GRSD lets an agent learn fine-grained credit from its own verified experience. For each prompt, the policy reflects on every rollout, contrasts successful and failed reflections into a compact `DO / AVOID` prior, and uses that prior as privileged context for turn-level self-distillation.
 
 Terminal rewards tell an agent whether a trajectory succeeded, but not which of its many decisions deserve credit. GRSD keeps the stable GRPO objective and adds a policy-native signal for that missing credit assignment.
+
+<table align="center">
+  <tr>
+    <td align="center" width="25%"><strong>Policy-native</strong><br><sub>The policy writes its own reflections</sub></td>
+    <td align="center" width="25%"><strong>Group-reflective</strong><br><sub>Success and failure are contrasted</sub></td>
+    <td align="center" width="25%"><strong>Turn-level</strong><br><sub>Credit follows interaction structure</sub></td>
+    <td align="center" width="25%"><strong>Inference-free</strong><br><sub>No privileged context at deployment</sub></td>
+  </tr>
+</table>
+
+> [!IMPORTANT]
+> **Official GRSD is policy-native.** The external model is only an optional scalar reflection judge; it never writes the reflection or group prior. The external-reflection implementation is retained solely as an ablation.
 
 | Challenge | GRSD design |
 | --- | --- |
@@ -40,7 +49,15 @@ Terminal rewards tell an agent whether a trajectory succeeded, but not which of 
 | A single rollout mixes useful and incidental behavior | A stop-gradient snapshot contrasts successful and failed rollouts for the same prompt. |
 | Privileged training context can leak into deployment | The prior is detached from inference; the deployed agent receives only the original task prompt. |
 
-### Method
+## Method
+
+<div align="center">
+  <img src="docs/grsd/pipeline.png" alt="GRSD pipeline: policy reflection, group-reflective prior construction, and turn-level self-distillation" width="98%">
+  <br>
+  <sub><b>GRSD pipeline.</b> Privileged guidance is used during training only; inference uses the plain task prompt.</sub>
+</div>
+
+<br>
 
 1. **Policy-native reflection.** For every verified rollout, the current policy identifies outcome-critical decisions and writes concrete behaviors to reinforce or avoid. An optional OpenAI-compatible endpoint supplies only a scalar rubric score for the reflection objective; it does not generate the reflection or the prior.
 2. **Group-reflective prior.** A frozen snapshot contrasts the reflections of successful and failed rollouts from the same prompt and synthesizes a concise `DO / AVOID` prior.
@@ -239,22 +256,9 @@ for script in examples/run_grsd_*local.sh examples/run_grsd_reflect_*local*.sh; 
 
 The launchers also validate required data/model paths, CUDA visibility, and (when enabled) the judge or SearchQA retriever endpoint before starting Ray.
 
-## Citation
-
-The supplied manuscript is currently anonymous. Replace the placeholder author list and URL when the paper metadata is public:
-
-```bibtex
-@article{grsd2027,
-  title   = {Group-Reflective Self-Distillation for Agentic Reinforcement Learning},
-  author  = {Anonymous Authors},
-  year    = {2027},
-  note    = {Under anonymous review}
-}
-```
-
 ## Acknowledgements
 
-GRSD builds on [veRL](https://github.com/volcengine/verl), [verl-agent](https://github.com/langfengQ/verl-agent), [ALFWorld](https://github.com/alfworld/alfworld), [WebShop](https://github.com/princeton-nlp/WebShop), and [Search-R1](https://github.com/PeterGriffinJin/Search-R1). We thank the authors and contributors of these projects.
+GRSD builds on [veRL](https://github.com/volcengine/verl), [verl-agent](https://github.com/langfengQ/verl-agent), [ALFWorld](https://github.com/alfworld/alfworld), [WebShop](https://github.com/princeton-nlp/WebShop), and [Search-R1](https://github.com/PeterGriffinJin/Search-R1). We also acknowledge the public [SDAR](https://github.com/ZJU-REAL/SDAR) repository, which provided an important implementation reference for agentic self-distillation. We thank the authors and contributors of these projects.
 
 <div align="center">
   <sub>Apache-2.0 | Research code | Training-time privileged context, inference-time plain prompts</sub>
