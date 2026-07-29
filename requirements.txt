@@ -15,10 +15,10 @@ pyarrow>=19.0.0
 pybind11
 pylatexenc
 pre-commit
-ray[default]
-tensordict<=0.6.2
+ray[default]>=2.41.0,<=2.50.0
+tensordict>=0.8.0,<=0.10.0,!=0.9.0
 torchdata
-transformers==4.51.1
+transformers<=4.57.3
 # vllm==0.8.4
 wandb
 packaging>=20.0

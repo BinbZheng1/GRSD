@@ -1,5 +1,4 @@
-"""
-GRSD (Group-Relative Self-Distillation) Trainer.
+"""Trainer for the external-reflection GRSD ablation.
 
 Extends RLSDRayTrainer. Like RLSD it MODULATES the GRPO advantage with the
 teacher-student signal (it does NOT add an auxiliary loss). Unlike RLSD:

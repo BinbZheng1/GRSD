@@ -1,27 +1,15 @@
 """
-GRSD-Reflect utilities: POLICY-NATIVE two-stage skill construction.
+GRSD utilities for policy-native two-stage guidance construction.
 
-This is a NEW variant that lives ALONGSIDE the original GRSD (grsd_utils.py is
-left untouched). The difference from the original GRSD:
+The policy being trained performs both stages with its rollout engine:
 
-  Original GRSD: an external API LLM (SkillReflector) performs BOTH the
-                 per-trajectory reflection (Stage A) and the contrastive prior
-                 synthesis (Stage B). Nothing about the reflection is trainable.
+* Stage A is trainable. The policy reflects on a completed trajectory, and the
+  generated tokens receive a GRPO signal from an external scalar rubric judge.
+* Stage B is stop-gradient. A policy snapshot summarizes the group's successful
+  and failed reflections into a DO/AVOID prior used only as teacher context.
 
-  GRSD-Reflect:  the *policy being trained* performs both stages by generating
-                 text with its own rollout engine.
-                   * Stage A (reflection s_i): TRAINABLE. The policy is asked to
-                     reflect on one completed trajectory and emit a skill. The
-                     reflection tokens are optimized by a GRPO loss whose reward
-                     comes from an external rubric judge (see ReflectionJudge).
-                   * Stage B (prior z_x): STOP-GRADIENT. A rollout snapshot of the
-                     current policy summarizes the group's reflections into a
-                     DO/AVOID prior. Because z_x is produced by the inference
-                     engine and consumed only as text context, no gradient flows
-                     through it (this realizes the paper's pi_{\\bar\\theta}).
-
-  The reflection reward r^ref_i = J(s_i, tau_i, R_i) is a DISCRETE rubric score
-  in {0, 1, 2, 3} (per the user's request), group-normalized into A^ref_i = Norm_G.
+The reflection reward is a discrete score in {0, 1, 2, 3}, group-normalized
+within the rollout group.
 
 All judge / prior / normalization computation here is external to autograd; the
 only trainable object is the policy that generated s_i. At inference time none of
@@ -49,7 +37,7 @@ from verl.trainer.ppo.grsd_reflect_prompts import (
 )
 
 
-def format_trajectory(turns: List[Dict], max_turns: int = 50, max_chars_per_obs: int = 1200) -> str:
+def format_trajectory(turns: List[Dict], max_turns: int = 50, max_chars_per_obs: int = 400) -> str:
     """Format a trajectory (list of {'obs','action'} dicts) into readable text."""
     turns = turns[:max_turns]
     lines = []
@@ -68,7 +56,7 @@ def format_trajectory(turns: List[Dict], max_turns: int = 50, max_chars_per_obs:
 class ReflectionJudge:
     """External-LLM rubric judge returning a discrete score in {0, 1, 2, 3}.
 
-    Config falls back to the same env vars as the original GRSD launcher:
+    Config falls back to the environment variables used by the GRSD launcher:
         JUDGE_API_BASE | LLM_API_BASE  -> base_url
         JUDGE_API_KEY  | LLM_API_KEY   -> api_key
         JUDGE_MODEL    | LLM_MODEL     -> model
@@ -87,7 +75,7 @@ class ReflectionJudge:
         timeout: float = 60.0,
         max_retries: int = 2,
         max_turns_in_prompt: int = 50,
-        max_chars_per_obs: int = 1200,
+        max_chars_per_obs: int = 400,
         max_concurrency: int = 16,
     ):
         self.api_base = api_base or os.environ.get(
@@ -165,7 +153,7 @@ class ReflectionJudge:
                 time.sleep(1.0 * (attempt + 1))
         with self._counter_lock:
             self.fail_count += 1
-        print(f"[GRSD-Reflect][Judge] scoring failed after retries: {last_err}")
+        print(f"[GRSD][Judge] scoring failed after retries: {last_err}")
         return None
 
     def score_batch(self, items: List[Dict]) -> List[Optional[int]]:

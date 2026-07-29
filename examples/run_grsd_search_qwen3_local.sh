@@ -1,35 +1,41 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Local GRSD + Search-based QA (Search-R1 style) launcher.
-# Defaults to policy-native GRSD-Reflect with turn-level modulation. Set
-# GRSD_VARIANT=original explicitly for the external-LLM GRSD ablation.
+# GRSD + Search-based QA (Search-R1 style) launcher.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR=${REPO_DIR:-$(cd "${SCRIPT_DIR}/.." && pwd)}
-WORKSPACE=${WORKSPACE:-$(dirname "${REPO_DIR}")}
-PYTHON_BIN=${PYTHON_BIN:-${WORKSPACE}/venv_search_qa/bin/python}
-GRSD_VARIANT=${GRSD_VARIANT:-reflect}
+WORKSPACE=${WORKSPACE:-${REPO_DIR}}
+MODEL_ROOT=${MODEL_ROOT:-${WORKSPACE}/models}
+DATA_ROOT=${DATA_ROOT:-${WORKSPACE}/data}
+PYTHON_BIN=${PYTHON_BIN:-python}
+if [[ "${PYTHON_BIN}" != */* ]]; then
+  PYTHON_BIN=$(command -v "${PYTHON_BIN}") || {
+    echo "Python executable not found: ${PYTHON_BIN}" >&2
+    exit 1
+  }
+fi
+GRSD_VARIANT=${GRSD_VARIANT:-grsd}
 
 case "${GRSD_VARIANT}" in
-  original)
+  external|original)
     TRAINER_MODULE=verl.trainer.main_grsd
-    DEFAULT_CHECKPOINT_NAME=grsd_qwen3_1.7b_local
+    DEFAULT_CHECKPOINT_NAME=external_reflection_qwen3_1.7b
+    DEFAULT_EXPERIMENT_NAME=GRSD-External-Reflection-Ablation-Qwen3-1.7B-Search
+    ;;
+  grsd|reflect)
+    TRAINER_MODULE=verl.trainer.main_grsd_reflect
+    DEFAULT_CHECKPOINT_NAME=grsd_qwen3_1.7b
     DEFAULT_EXPERIMENT_NAME=GRSD-Qwen3-1.7B-Search
     ;;
-  reflect)
-    TRAINER_MODULE=verl.trainer.main_grsd_reflect
-    DEFAULT_CHECKPOINT_NAME=grsd_reflect_qwen3_1.7b_local
-    DEFAULT_EXPERIMENT_NAME=GRSD-Reflect-Qwen3-1.7B-Search
-    ;;
   *)
-    echo "GRSD_VARIANT must be 'original' or 'reflect', got: ${GRSD_VARIANT}" >&2
+    echo "GRSD_VARIANT must be 'grsd' or 'external' (legacy: 'reflect' or 'original'), got: ${GRSD_VARIANT}" >&2
     exit 1
     ;;
 esac
 
-MODEL_PATH=${MODEL_PATH:-${WORKSPACE}/models/Qwen3-1.7B}
-DATA_DIR=${DATA_DIR:-${WORKSPACE}/data/searchR1_processed_direct}
+MODEL_PATH=${MODEL_PATH:-${MODEL_ROOT}/Qwen3-1.7B}
+DATA_DIR=${DATA_DIR:-${DATA_ROOT}/search}
 TRAIN_FILE=${TRAIN_FILE:-${DATA_DIR}/train.parquet}
 VAL_FILE=${VAL_FILE:-${DATA_DIR}/test.parquet}
 CHECKPOINT_DIR=${CHECKPOINT_DIR:-${REPO_DIR}/checkpoints/verl_agent_search/${DEFAULT_CHECKPOINT_NAME}}
@@ -78,18 +84,18 @@ GRSD_TOKEN_NORM=${GRSD_TOKEN_NORM:-none}
 SKILLS_DIR=${SKILLS_DIR:-skills/search}
 SKILL_ALL=${SKILL_ALL:-false}
 
-# Original GRSD: the external LLM synthesizes reflections and group priors.
+# External-reflection ablation: the service synthesizes reflections and priors.
 REFLECT_TEMPERATURE=${REFLECT_TEMPERATURE:-0.0}
 REFLECT_MAX_TOKENS=${REFLECT_MAX_TOKENS:-1024}
 REFLECT_TIMEOUT=${REFLECT_TIMEOUT:-60.0}
 REFLECT_MAX_RETRIES=${REFLECT_MAX_RETRIES:-2}
 
-# GRSD-Reflect only: the policy synthesizes reflections/priors and the external
-# LLM scores them. These options are ignored by the original GRSD variant.
-REFLECT_LOSS_COEF=${REFLECT_LOSS_COEF:-0.1}
+# GRSD uses the policy to synthesize reflections and priors. The external model
+# only assigns a scalar rubric score to each reflection.
+REFLECT_LOSS_COEF=${REFLECT_LOSS_COEF:-0.01}
 REFLECT_DO_SAMPLE=${REFLECT_DO_SAMPLE:-true}
 REFLECT_MAX_TURNS=${REFLECT_MAX_TURNS:-4}
-REFLECT_MAX_CHARS_PER_OBS=${REFLECT_MAX_CHARS_PER_OBS:-1200}
+REFLECT_MAX_CHARS_PER_OBS=${REFLECT_MAX_CHARS_PER_OBS:-400}
 REFLECT_SAMPLE_FREQ=${REFLECT_SAMPLE_FREQ:-5}
 REFLECT_SAMPLE_DIR=${REFLECT_SAMPLE_DIR:-${CHECKPOINT_DIR}/reflect_samples}
 JUDGE_TEMPERATURE=${JUDGE_TEMPERATURE:-0.0}
@@ -98,6 +104,14 @@ JUDGE_TIMEOUT=${JUDGE_TIMEOUT:-60.0}
 JUDGE_MAX_RETRIES=${JUDGE_MAX_RETRIES:-2}
 # ReflectionJudge uses a bounded ThreadPoolExecutor for network-bound scoring.
 JUDGE_MAX_CONCURRENCY=${JUDGE_MAX_CONCURRENCY:-16}
+JUDGE_ENABLED=${JUDGE_ENABLED:-true}
+case "${JUDGE_ENABLED,,}" in
+  true|false) ;;
+  *)
+    echo "JUDGE_ENABLED must be true or false, got: ${JUDGE_ENABLED}" >&2
+    exit 1
+    ;;
+esac
 
 # External LLM is used only as the rubric judge, not to synthesize priors.
 # JUDGE_* takes precedence; LLM_* aliases are accepted for compatibility.
@@ -106,7 +120,7 @@ JUDGE_API_KEY=${JUDGE_API_KEY:-${LLM_API_KEY:-}}
 JUDGE_MODEL=${JUDGE_MODEL:-${LLM_MODEL:-gpt-4o-mini}}
 GRSD_PROBE_ATTEMPTS=${GRSD_PROBE_ATTEMPTS:-3}
 
-if [[ "${GRSD_VARIANT}" == "original" ]]; then
+if [[ "${TRAINER_MODULE}" == "verl.trainer.main_grsd" ]]; then
   VARIANT_ARGS=(
     +algorithm.grsd.reflect_temperature="${REFLECT_TEMPERATURE}"
     +algorithm.grsd.reflect_max_tokens="${REFLECT_MAX_TOKENS}"
@@ -125,6 +139,7 @@ else
     +algorithm.grsd.reflect_max_chars_per_obs="${REFLECT_MAX_CHARS_PER_OBS}"
     +algorithm.grsd.reflect_sample_freq="${REFLECT_SAMPLE_FREQ}"
     +algorithm.grsd.reflect_sample_dir="${REFLECT_SAMPLE_DIR}"
+    +algorithm.grsd.judge_enabled="${JUDGE_ENABLED}"
     +algorithm.grsd.judge_temperature="${JUDGE_TEMPERATURE}"
     +algorithm.grsd.judge_max_tokens="${JUDGE_MAX_TOKENS}"
     +algorithm.grsd.judge_timeout="${JUDGE_TIMEOUT}"
@@ -140,9 +155,9 @@ TEST_FREQ=${TEST_FREQ:-20}
 SAVE_FREQ=${SAVE_FREQ:-40}
 EXPERIMENT_NAME=${EXPERIMENT_NAME:-${DEFAULT_EXPERIMENT_NAME}}
 TRAINER_LOGGER=${TRAINER_LOGGER:-"['console','wandb']"}
-WANDB_MODE=${WANDB_MODE:-online}
+WANDB_MODE=${WANDB_MODE:-offline}
 WANDB_DIR=${WANDB_DIR:-${WORKSPACE}/wandb}
-WANDB_API_KEY_FILE=${WANDB_API_KEY_FILE:-${WORKSPACE}/.secrets/wandb_api_key}
+WANDB_API_KEY_FILE=${WANDB_API_KEY_FILE:-${REPO_DIR}/.secrets/wandb_api_key}
 if [[ -z "${WANDB_API_KEY:-}" && -f "${WANDB_API_KEY_FILE}" ]]; then
   WANDB_API_KEY=$(<"${WANDB_API_KEY_FILE}")
 fi
@@ -171,8 +186,8 @@ if [[ "${WANDB_MODE}" == "online" && -z "${WANDB_API_KEY:-}" && ! -f "${HOME}/.n
   exit 1
 fi
 
-if [[ -z "${JUDGE_API_KEY}" ]]; then
-  echo "GRSD requires JUDGE_API_KEY (or LLM_API_KEY)." >&2
+if [[ "${TRAINER_MODULE}" == "verl.trainer.main_grsd" || "${JUDGE_ENABLED,,}" == "true" ]] && [[ -z "${JUDGE_API_KEY}" ]]; then
+  echo "This GRSD configuration requires JUDGE_API_KEY (or LLM_API_KEY)." >&2
   echo "Export one of those variables before launching." >&2
   exit 1
 fi
@@ -207,8 +222,9 @@ if not torch.cuda.is_available() or torch.cuda.device_count() == 0:
     raise SystemExit("CUDA is not visible. Run this script inside a GPU job/container.")
 PY
 
-# Fail before allocating training workers when the judge is misconfigured.
-"${PYTHON_BIN}" - "${GRSD_PROBE_ATTEMPTS}" <<'PY'
+# Fail before allocating training workers when the external service is required.
+if [[ "${TRAINER_MODULE}" == "verl.trainer.main_grsd" || "${JUDGE_ENABLED,,}" == "true" ]]; then
+  "${PYTHON_BIN}" - "${GRSD_PROBE_ATTEMPTS}" <<'PY'
 import os
 import sys
 import time
@@ -239,6 +255,9 @@ for attempt in range(1, attempts + 1):
 else:
     raise SystemExit(f"GRSD external endpoint unavailable: {last_error}")
 PY
+else
+  echo "[GRSD] external judge disabled; skipping endpoint probe and reflection GRPO update."
+fi
 
 set -x
 "${PYTHON_BIN}" -u -m "${TRAINER_MODULE}" \

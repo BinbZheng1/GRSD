@@ -1,5 +1,4 @@
-"""
-GRSD (Group-Relative Self-Distillation) utilities.
+"""Utilities for the external-reflection GRSD ablation.
 
 Two components:
   1. SkillReflector: an external-LLM client that builds privileged skill

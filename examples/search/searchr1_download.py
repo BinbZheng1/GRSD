@@ -7,7 +7,7 @@ parser.add_argument("--local_dir", type=str, required=True, help="Local director
 
 args = parser.parse_args()
 
-repo_id = "PeterJinGo/wiki-18-e5-index"
+repo_id = args.repo_id
 for file in ["part_aa", "part_ab"]:
     hf_hub_download(
         repo_id=repo_id,

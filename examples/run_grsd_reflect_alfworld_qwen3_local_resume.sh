@@ -1,19 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Resume launcher for the GRSD-Reflect Qwen3-1.7B ALFWorld run.
-#
-# global_step_240 was saved after the step-240 update. Resume the original W&B
-# run and keep initial validation enabled: it is explicitly logged at step 240,
-# so the continued curve starts at 240 even if step 239 is absent. The first
-# resumed training update is then logged at step 241.
+# Resume launcher for a GRSD Qwen3-1.7B ALFWorld run.
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR=${REPO_DIR:-$(cd "${HERE}/.." && pwd)}
-WORKSPACE=${WORKSPACE:-$(dirname "${REPO_DIR}")}
-CHECKPOINT_DIR=${CHECKPOINT_DIR:-${REPO_DIR}/checkpoints/verl_agent_alfworld/grsd_reflect_qwen3_1.7b_local_turn_alpha0.01_0713}
+CHECKPOINT_DIR=${CHECKPOINT_DIR:-${REPO_DIR}/checkpoints/verl_agent_alfworld/grsd_qwen3_1.7b}
 
-RESUME_FROM_STEP=${RESUME_FROM_STEP:-420}
+RESUME_FROM_STEP=${RESUME_FROM_STEP:-240}
 RESUME_FROM_PATH=${RESUME_FROM_PATH:-${CHECKPOINT_DIR}/global_step_${RESUME_FROM_STEP}}
 
 if [[ ! -f "${RESUME_FROM_PATH}/data.pt" ]]; then
@@ -37,15 +31,15 @@ done
 if [[ -n "${WANDB_RUN_ID:-}" ]]; then
   export WANDB_RESUME=${WANDB_RESUME:-must}
 fi
-export EXPERIMENT_NAME=${EXPERIMENT_NAME:-GRSD-Reflect-ALFWorld-Resume}
+export EXPERIMENT_NAME=${EXPERIMENT_NAME:-GRSD-Qwen3-1.7B-ALFWorld-Resume}
 
-# Continue to step 320 by default (80 more updates); callers can override this.
-export TOTAL_TRAINING_STEPS=${TOTAL_TRAINING_STEPS:-800}
+# Continue to the paper's Qwen3-1.7B ALFWorld horizon by default.
+export TOTAL_TRAINING_STEPS=${TOTAL_TRAINING_STEPS:-600}
 export VAL_BEFORE_TRAIN=${VAL_BEFORE_TRAIN:-False}
 
-echo "== GRSD-Reflect resume =="
+echo "== GRSD resume =="
 echo "  resume_from : ${RESUME_FROM_PATH}"
-echo "  wandb run   : ${WANDB_ENTITY}/verl_agent_alfworld/${WANDB_RUN_ID} (resume=${WANDB_RESUME})"
+echo "  wandb run   : ${WANDB_ENTITY:-<unset>}/verl_agent_alfworld/${WANDB_RUN_ID:-<unset>} (resume=${WANDB_RESUME:-<unset>})"
 echo "  exp name    : ${EXPERIMENT_NAME}"
 echo "  total_steps : ${TOTAL_TRAINING_STEPS}"
 echo "  val_before  : ${VAL_BEFORE_TRAIN} (logs validation at step ${RESUME_FROM_STEP})"

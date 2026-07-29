@@ -15,12 +15,12 @@ LOG=${LOG:-logs/grsd_train_$(date +%Y%m%d_%H%M%S).log}
 # Use all 8 GPUs by default. To restrict, set both CUDA_VISIBLE_DEVICES and
 # a matching N_GPUS via env (e.g. CUDA_VISIBLE_DEVICES=0,1,2,3 N_GPUS=4 bash ...).
 export N_GPUS=${N_GPUS:-8}
-export GRSD_VARIANT=${GRSD_VARIANT:-reflect}
+export GRSD_VARIANT=${GRSD_VARIANT:-grsd}
 export GRSD_MODULATION_LEVEL=${GRSD_MODULATION_LEVEL:-turn}
 
 # Force the intended experiment name regardless of any inherited EXPERIMENT_NAME.
 unset EXPERIMENT_NAME
-export EXPERIMENT_NAME="${GRSD_EXPERIMENT_NAME:-GRSD-Reflect-Qwen3-1.7B-ALFWorld-Turn}"
+export EXPERIMENT_NAME="${GRSD_EXPERIMENT_NAME:-GRSD-Qwen3-1.7B-ALFWorld}"
 
 echo "[retry] LOG=${LOG}"
 echo "[retry] CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-<all>} N_GPUS=${N_GPUS}"

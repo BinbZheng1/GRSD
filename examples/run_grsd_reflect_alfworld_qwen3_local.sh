@@ -1,26 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# GRSD-Reflect: POLICY-NATIVE reflection + prior (NEW variant).
-# Differs from run_grsd_alfworld_qwen3_local.sh only in:
+# GRSD: policy-native reflection and group-level guidance construction.
+# The internal module retains its historical name for checkpoint compatibility:
 #   * entry module -> verl.trainer.main_grsd_reflect
 #   * the external LLM is used ONLY as a rubric judge (0/1/2/3), not for
 #     trajectory reflection / prior synthesis (the policy does those itself).
 #   * extra hyperparameters: reflect_loss_coef (alpha), reflect_do_sample,
 #     reflect_max_turns, reflect_max_chars_per_obs, judge_* knobs.
-# GRSD
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR=${REPO_DIR:-$(cd "${SCRIPT_DIR}/.." && pwd)}
-WORKSPACE=${WORKSPACE:-$(dirname "${REPO_DIR}")}
-PYTHON_BIN=${PYTHON_BIN:-${WORKSPACE}/venv_echo_megatron/bin/python}
+WORKSPACE=${WORKSPACE:-${REPO_DIR}}
+MODEL_ROOT=${MODEL_ROOT:-${WORKSPACE}/models}
+DATA_ROOT=${DATA_ROOT:-${WORKSPACE}/data}
+PYTHON_BIN=${PYTHON_BIN:-python}
+if [[ "${PYTHON_BIN}" != */* ]]; then
+  PYTHON_BIN=$(command -v "${PYTHON_BIN}") || {
+    echo "Python executable not found: ${PYTHON_BIN}" >&2
+    exit 1
+  }
+fi
 
-MODEL_PATH=${MODEL_PATH:-${WORKSPACE}/models/Qwen3-1.7B}
-DATA_DIR=${DATA_DIR:-${WORKSPACE}/data/verl-agent/text}
+MODEL_PATH=${MODEL_PATH:-${MODEL_ROOT}/Qwen3-1.7B}
+DATA_DIR=${DATA_DIR:-${DATA_ROOT}/alfworld/metadata}
 TRAIN_FILE=${TRAIN_FILE:-${DATA_DIR}/train.parquet}
 VAL_FILE=${VAL_FILE:-${DATA_DIR}/test.parquet}
-ALFWORLD_DATA=${ALFWORLD_DATA:-${WORKSPACE}/data/alfworld}
-CHECKPOINT_DIR=${CHECKPOINT_DIR:-${REPO_DIR}/checkpoints/verl_agent_alfworld/grsd_reflect_qwen3_1.7b_local_turn_alpha0.01_0713}
+ALFWORLD_DATA=${ALFWORLD_DATA:-${DATA_ROOT}/alfworld}
+CHECKPOINT_DIR=${CHECKPOINT_DIR:-${REPO_DIR}/checkpoints/verl_agent_alfworld/grsd_qwen3_1.7b}
 
 ENGINE=${ENGINE:-vllm}
 N_GPUS=${N_GPUS:-8}
@@ -48,7 +54,7 @@ LR=${LR:-1e-6}
 KL_COEF=${KL_COEF:-0.01}
 INVALID_ACTION_PENALTY_COEF=${INVALID_ACTION_PENALTY_COEF:-0.1}
 
-# GRSD turn-level modulation (inherited from original GRSD).
+# GRSD turn-level modulation.
 GRSD_LAMBDA=${GRSD_LAMBDA:-0.5}
 GRSD_ETA=${GRSD_ETA:-0.0}
 # Match RLSD clip_eps=0.2. With lambda=0.5, both turn- and token-level
@@ -71,7 +77,7 @@ GRSD_TOKEN_NORM=${GRSD_TOKEN_NORM:-none}
 SKILLS_DIR=${SKILLS_DIR:-skills/alfworld}
 SKILL_ALL=${SKILL_ALL:-false}
 
-# GRSD-Reflect specific: policy-native reflection + rubric judge.
+# GRSD reflection objective and rubric judge.
 # reflect_loss_coef = alpha in L = L_task + alpha * L_ref (paper). Keep small.
 REFLECT_LOSS_COEF=${REFLECT_LOSS_COEF:-0.01}
 REFLECT_DO_SAMPLE=${REFLECT_DO_SAMPLE:-true}
@@ -84,7 +90,7 @@ REFLECT_SAMPLE_FREQ=${REFLECT_SAMPLE_FREQ:-5}
 REFLECT_SAMPLE_DIR=${REFLECT_SAMPLE_DIR:-${CHECKPOINT_DIR}/reflect_samples}
 # Set false to skip the external judge API and the judge-supervised reflection
 # GRPO update. Policy-native Stage-A reflections and Stage-B priors stay enabled.
-JUDGE_ENABLED=${JUDGE_ENABLED:-false}
+JUDGE_ENABLED=${JUDGE_ENABLED:-true}
 case "${JUDGE_ENABLED,,}" in
   true|false) ;;
   *)
@@ -105,16 +111,16 @@ JUDGE_API_BASE=${JUDGE_API_BASE:-${LLM_API_BASE:-https://api.openai.com/v1}}
 JUDGE_API_KEY=${JUDGE_API_KEY:-${LLM_API_KEY:-}}
 JUDGE_MODEL=${JUDGE_MODEL:-${LLM_MODEL:-gpt-4o-mini}}
 
-TOTAL_TRAINING_STEPS=${TOTAL_TRAINING_STEPS:-null}
-TOTAL_EPOCHS=${TOTAL_EPOCHS:-800}
+TOTAL_TRAINING_STEPS=${TOTAL_TRAINING_STEPS:-600}
+TOTAL_EPOCHS=${TOTAL_EPOCHS:-600}
 VAL_BEFORE_TRAIN=${VAL_BEFORE_TRAIN:-True}
 TEST_FREQ=${TEST_FREQ:-5}
 SAVE_FREQ=${SAVE_FREQ:-20}
-EXPERIMENT_NAME=${EXPERIMENT_NAME:-GRSD-Reflect-Qwen3-1.7B-ALFWorld-0713}
+EXPERIMENT_NAME=${EXPERIMENT_NAME:-GRSD-Qwen3-1.7B-ALFWorld}
 TRAINER_LOGGER=${TRAINER_LOGGER:-"['console','wandb']"}
-WANDB_MODE=${WANDB_MODE:-online}
+WANDB_MODE=${WANDB_MODE:-offline}
 WANDB_DIR=${WANDB_DIR:-${WORKSPACE}/wandb}
-WANDB_API_KEY_FILE=${WANDB_API_KEY_FILE:-${WORKSPACE}/.secrets/wandb_api_key}
+WANDB_API_KEY_FILE=${WANDB_API_KEY_FILE:-${REPO_DIR}/.secrets/wandb_api_key}
 if [[ -z "${WANDB_API_KEY:-}" && -f "${WANDB_API_KEY_FILE}" ]]; then
   WANDB_API_KEY=$(<"${WANDB_API_KEY_FILE}")
 fi
@@ -184,7 +190,7 @@ base = os.environ["JUDGE_API_BASE"]
 key = os.environ["JUDGE_API_KEY"]
 model = os.environ["JUDGE_MODEL"]
 attempts = int(sys.argv[1]) if len(sys.argv) > 1 else 6
-print(f"[GRSD-Reflect] probing judge endpoint base={base} model={model} attempts={attempts}")
+print(f"[GRSD] probing judge endpoint base={base} model={model} attempts={attempts}")
 
 client = OpenAI(api_key=key, base_url=base, timeout=30.0)
 last_err = None
@@ -197,19 +203,19 @@ for i in range(1, attempts + 1):
             max_tokens=256,
         )
         content = resp.choices[0].message.content
-        print(f"[GRSD-Reflect] probe {i}/{attempts} OK: finish_reason={resp.choices[0].finish_reason}, content={content!r}")
-        print("[GRSD-Reflect] endpoint reachable, proceeding.")
+        print(f"[GRSD] probe {i}/{attempts} OK: finish_reason={resp.choices[0].finish_reason}, content={content!r}")
+        print("[GRSD] endpoint reachable, proceeding.")
         break
     except Exception as e:
         last_err = f"{type(e).__name__}: {str(e)[:200]}"
-        print(f"[GRSD-Reflect] probe {i}/{attempts} FAILED: {last_err}")
+        print(f"[GRSD] probe {i}/{attempts} FAILED: {last_err}")
         if i < attempts:
             time.sleep(2.0 * i)
 else:
-    raise SystemExit(f"[GRSD-Reflect] external judge endpoint unreachable after {attempts} attempts: {last_err}")
+    raise SystemExit(f"[GRSD] external judge endpoint unreachable after {attempts} attempts: {last_err}")
 PY
 else
-  echo "[GRSD-Reflect] external judge disabled; skipping endpoint probe and reflection GRPO update."
+  echo "[GRSD] external judge disabled; skipping endpoint probe and reflection GRPO update."
 fi
 
 set -x

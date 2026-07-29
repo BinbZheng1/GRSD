@@ -1,43 +1,51 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Local GRSD + WebShop launcher for Qwen3-1.7B. WebShop requires Python 3.10,
+# GRSD + WebShop launcher for Qwen3-1.7B. WebShop requires Python 3.10,
 # JDK >= 11, product JSON files, and a local Pyserini/Lucene index.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR=${REPO_DIR:-$(cd "${SCRIPT_DIR}/.." && pwd)}
-WORKSPACE=${WORKSPACE:-$(dirname "${REPO_DIR}")}
-PYTHON_BIN=${PYTHON_BIN:-${WORKSPACE}/venv_webshop/bin/python}
-GRSD_VARIANT=${GRSD_VARIANT:-reflect}
+WORKSPACE=${WORKSPACE:-${REPO_DIR}}
+MODEL_ROOT=${MODEL_ROOT:-${WORKSPACE}/models}
+DATA_ROOT=${DATA_ROOT:-${WORKSPACE}/data}
+PYTHON_BIN=${PYTHON_BIN:-python}
+if [[ "${PYTHON_BIN}" != */* ]]; then
+  PYTHON_BIN=$(command -v "${PYTHON_BIN}") || {
+    echo "Python executable not found: ${PYTHON_BIN}" >&2
+    exit 1
+  }
+fi
+GRSD_VARIANT=${GRSD_VARIANT:-grsd}
 
 case "${GRSD_VARIANT}" in
-  original)
+  external|original)
     TRAINER_MODULE=verl.trainer.main_grsd
-    DEFAULT_CHECKPOINT_NAME=grsd_qwen3_1.7b_local
+    DEFAULT_CHECKPOINT_NAME=external_reflection_qwen3_1.7b
+    DEFAULT_EXPERIMENT_NAME=GRSD-External-Reflection-Ablation-Qwen3-1.7B-WebShop
+    ;;
+  grsd|reflect)
+    TRAINER_MODULE=verl.trainer.main_grsd_reflect
+    DEFAULT_CHECKPOINT_NAME=grsd_qwen3_1.7b
     DEFAULT_EXPERIMENT_NAME=GRSD-Qwen3-1.7B-WebShop
     ;;
-  reflect)
-    TRAINER_MODULE=verl.trainer.main_grsd_reflect
-    DEFAULT_CHECKPOINT_NAME=grsd_reflect_qwen3_1.7b_local
-    DEFAULT_EXPERIMENT_NAME=GRSD-Reflect-Qwen3-1.7B-WebShop
-    ;;
   *)
-    echo "GRSD_VARIANT must be 'original' or 'reflect', got: ${GRSD_VARIANT}" >&2
+    echo "GRSD_VARIANT must be 'grsd' or 'external' (legacy: 'reflect' or 'original'), got: ${GRSD_VARIANT}" >&2
     exit 1
     ;;
 esac
 
-MODEL_PATH=${MODEL_PATH:-${WORKSPACE}/models/Qwen3-1.7B}
-DATA_DIR=${DATA_DIR:-${WORKSPACE}/data/verl-agent/text}
+MODEL_PATH=${MODEL_PATH:-${MODEL_ROOT}/Qwen3-1.7B}
+DATA_DIR=${DATA_DIR:-${DATA_ROOT}/webshop/metadata}
 TRAIN_FILE=${TRAIN_FILE:-${DATA_DIR}/train.parquet}
 VAL_FILE=${VAL_FILE:-${DATA_DIR}/test.parquet}
 CHECKPOINT_DIR=${CHECKPOINT_DIR:-${REPO_DIR}/checkpoints/verl_agent_webshop/${DEFAULT_CHECKPOINT_NAME}}
 
 WEBSHOP_SOURCE_DIR=${REPO_DIR}/agent_system/environments/env_package/webshop/webshop
-WEBSHOP_ASSET_ROOT=${WEBSHOP_ASSET_ROOT:-${WORKSPACE}/data/webshop}
+WEBSHOP_ASSET_ROOT=${WEBSHOP_ASSET_ROOT:-${DATA_ROOT}/webshop}
 WEBSHOP_DATA_DIR=${WEBSHOP_DATA_DIR:-${WEBSHOP_ASSET_ROOT}/data}
 WEBSHOP_INDEX_DIR=${WEBSHOP_INDEX_DIR:-${WEBSHOP_ASSET_ROOT}/search_engine/indexes}
-WEBSHOP_JAVA_HOME=${WEBSHOP_JAVA_HOME:-${WEBSHOP_ASSET_ROOT}/jdk-11}
+WEBSHOP_JAVA_HOME=${WEBSHOP_JAVA_HOME:-${JAVA_HOME:-${WEBSHOP_ASSET_ROOT}/jdk-11}}
 WEBSHOP_USE_SMALL=${WEBSHOP_USE_SMALL:-True}
 WEBSHOP_HUMAN_GOALS=${WEBSHOP_HUMAN_GOALS:-False}
 
@@ -78,18 +86,18 @@ GRSD_TOKEN_NORM=${GRSD_TOKEN_NORM:-none}
 SKILLS_DIR=${SKILLS_DIR:-skills/webshop}
 SKILL_ALL=${SKILL_ALL:-false}
 
-# Original GRSD uses the external service to synthesize reflections and priors.
+# External-reflection ablation: the service synthesizes reflections and priors.
 REFLECT_TEMPERATURE=${REFLECT_TEMPERATURE:-0.0}
 REFLECT_MAX_TOKENS=${REFLECT_MAX_TOKENS:-1024}
 REFLECT_TIMEOUT=${REFLECT_TIMEOUT:-60.0}
 REFLECT_MAX_RETRIES=${REFLECT_MAX_RETRIES:-2}
 
-# GRSD-Reflect uses the policy for reflection/prior generation and an optional
-# external rubric judge for the auxiliary reflection update.
-REFLECT_LOSS_COEF=${REFLECT_LOSS_COEF:-0.1}
+# GRSD uses the policy for reflection/prior generation and an external rubric
+# judge for the auxiliary reflection update.
+REFLECT_LOSS_COEF=${REFLECT_LOSS_COEF:-0.01}
 REFLECT_DO_SAMPLE=${REFLECT_DO_SAMPLE:-true}
 REFLECT_MAX_TURNS=${REFLECT_MAX_TURNS:-15}
-REFLECT_MAX_CHARS_PER_OBS=${REFLECT_MAX_CHARS_PER_OBS:-1200}
+REFLECT_MAX_CHARS_PER_OBS=${REFLECT_MAX_CHARS_PER_OBS:-400}
 REFLECT_SAMPLE_FREQ=${REFLECT_SAMPLE_FREQ:-5}
 REFLECT_SAMPLE_DIR=${REFLECT_SAMPLE_DIR:-${CHECKPOINT_DIR}/reflect_samples}
 JUDGE_ENABLED=${JUDGE_ENABLED:-true}
@@ -111,7 +119,7 @@ JUDGE_API_KEY=${JUDGE_API_KEY:-${LLM_API_KEY:-}}
 JUDGE_MODEL=${JUDGE_MODEL:-${LLM_MODEL:-gpt-4o-mini}}
 GRSD_PROBE_ATTEMPTS=${GRSD_PROBE_ATTEMPTS:-3}
 
-if [[ "${GRSD_VARIANT}" == "original" ]]; then
+if [[ "${TRAINER_MODULE}" == "verl.trainer.main_grsd" ]]; then
   VARIANT_ARGS=(
     +algorithm.grsd.teacher_max_prompt_length="${TEACHER_MAX_PROMPT_LENGTH}"
     +algorithm.grsd.reflect_temperature="${REFLECT_TEMPERATURE}"
@@ -141,7 +149,7 @@ else
   )
 fi
 
-TOTAL_TRAINING_STEPS=${TOTAL_TRAINING_STEPS:-null}
+TOTAL_TRAINING_STEPS=${TOTAL_TRAINING_STEPS:-240}
 TOTAL_EPOCHS=${TOTAL_EPOCHS:-240}
 VAL_BEFORE_TRAIN=${VAL_BEFORE_TRAIN:-True}
 TEST_FREQ=${TEST_FREQ:-5}
@@ -150,7 +158,7 @@ EXPERIMENT_NAME=${EXPERIMENT_NAME:-${DEFAULT_EXPERIMENT_NAME}}
 TRAINER_LOGGER=${TRAINER_LOGGER:-"['console','wandb']"}
 WANDB_MODE=${WANDB_MODE:-offline}
 WANDB_DIR=${WANDB_DIR:-${WORKSPACE}/wandb}
-WANDB_API_KEY_FILE=${WANDB_API_KEY_FILE:-${WORKSPACE}/.secrets/wandb_api_key}
+WANDB_API_KEY_FILE=${WANDB_API_KEY_FILE:-${REPO_DIR}/.secrets/wandb_api_key}
 if [[ -z "${WANDB_API_KEY:-}" && -f "${WANDB_API_KEY_FILE}" ]]; then
   WANDB_API_KEY=$(<"${WANDB_API_KEY_FILE}")
 fi
@@ -213,7 +221,7 @@ if [[ "${WANDB_MODE}" == "online" && -z "${WANDB_API_KEY:-}" && ! -f "${HOME}/.n
   exit 1
 fi
 
-if [[ "${GRSD_VARIANT}" == "original" || "${JUDGE_ENABLED,,}" == "true" ]]; then
+if [[ "${TRAINER_MODULE}" == "verl.trainer.main_grsd" || "${JUDGE_ENABLED,,}" == "true" ]]; then
   if [[ -z "${JUDGE_API_KEY}" ]]; then
     echo "This GRSD configuration requires JUDGE_API_KEY (or LLM_API_KEY)." >&2
     exit 1
@@ -265,6 +273,9 @@ link_webshop_asset() {
   local source_path=$1
   local target_path=$2
 
+  if [[ "$(realpath -m "${source_path}")" == "$(realpath -m "${target_path}")" ]]; then
+    return
+  fi
   if [[ -e "${target_path}" && ! -L "${target_path}" ]]; then
     echo "Refusing to replace the real path: ${target_path}" >&2
     exit 1
@@ -347,7 +358,7 @@ if not torch.cuda.is_available() or torch.cuda.device_count() == 0:
     raise SystemExit("CUDA is not visible. Run this script inside a GPU job/container.")
 PY
 
-if [[ "${GRSD_VARIANT}" == "original" || "${JUDGE_ENABLED,,}" == "true" ]]; then
+if [[ "${TRAINER_MODULE}" == "verl.trainer.main_grsd" || "${JUDGE_ENABLED,,}" == "true" ]]; then
   "${PYTHON_BIN}" - "${GRSD_PROBE_ATTEMPTS}" <<'PY'
 import os
 import sys

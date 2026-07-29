@@ -449,7 +449,7 @@ class DataParallelPPOActor(BasePPOActor):
 
     @GPUMemoryLogger(role="dp actor", logger=logger)
     def update_reflect_policy(self, data: DataProto):
-        """Alpha-weighted GRPO update over Stage-A reflection tokens (GRSD-Reflect).
+        """Alpha-weighted GRPO update over Stage-A GRSD reflection tokens.
 
         Mirrors update_policy but is intentionally minimal:
           * single-turn response_mask (reflection is a plain prompt->response gen);

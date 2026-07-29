@@ -1,10 +1,11 @@
-"""
-Main entry point for GRSD (Group-Relative Self-Distillation) training.
+"""External-reflection ablation for GRSD.
 
 GRSD does not add an auxiliary actor loss; it writes the modulated advantage
 back into the standard PPO batch.
 It modulates the GRPO advantage at turn level inside the trainer using an
-online contrastive prior built by an external LLM (SkillReflector).
+online contrastive prior built by an external LLM (SkillReflector). The
+official GRSD path is ``main_grsd_reflect.py``, where the policy generates its
+own reflections and group-level guidance.
 Modulation is BIDIRECTIONAL: q>0 amplifies, q<0 attenuates.
 """
 

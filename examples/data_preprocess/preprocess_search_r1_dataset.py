@@ -17,6 +17,7 @@ import argparse
 import logging
 import os
 import tempfile
+from pathlib import Path
 
 import pandas as pd
 from huggingface_hub import hf_hub_download
@@ -135,9 +136,10 @@ def main():
             except Exception as e:
                 logger.error(f"Error processing {split} split: {e}")
 
-    if not processed_files:
-        logger.warning("No data was processed or saved")
-        return
+    if len(processed_files) != 2:
+        raise RuntimeError(
+            f"Expected train.parquet and test.parquet, but processed {processed_files}"
+        )
 
     logger.info(f"Successfully processed {len(processed_files)} files to {local_save_dir}")
 
@@ -152,13 +154,14 @@ def main():
 
 
 if __name__ == "__main__":
+    default_output_dir = Path(__file__).resolve().parents[2] / "data" / "search"
     parser = argparse.ArgumentParser(description="Download Search-R1 from HuggingFace, process, and save to Parquet.")
     parser.add_argument(
         "--hf_repo_id", default="PeterJinGo/nq_hotpotqa_train", help="HuggingFace dataset repository ID."
     )
     parser.add_argument(
         "--local_dir",
-        default="~/data/searchR1_processed_direct",
+        default=str(default_output_dir),
         help="Local directory to save the processed Parquet files.",
     )
     parser.add_argument("--hdfs_dir", default=None, help="Optional HDFS directory to copy the Parquet files to.")

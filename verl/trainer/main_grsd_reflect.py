@@ -1,5 +1,5 @@
 """
-Main entry point for GRSD-Reflect (policy-native Group-Reflective Self-Distillation).
+Main entry point for GRSD (Group-Reflective Self-Distillation).
 
 Difference from main_grsd.py:
   * The privileged prior z_x is NOT built by an external API LLM. Instead the
@@ -10,8 +10,8 @@ Difference from main_grsd.py:
     reward for a small alpha-weighted GRPO update on the reflection tokens
     (paper: L = L_task + alpha * L_ref).
 
-The original GRSD (main_grsd.py + grsd_ray_trainer.py + SkillReflector) is left
-untouched and can still be run.
+The historical ``reflect`` suffix is retained for checkpoint and import
+compatibility. ``main_grsd.py`` is the external-reflection ablation.
 """
 
 import hydra
@@ -179,16 +179,16 @@ class GRSDReflectTaskRunner:
                 timeout=grsd_cfg.get("judge_timeout", 60.0),
                 max_retries=grsd_cfg.get("judge_max_retries", 2),
                 max_turns_in_prompt=grsd_cfg.get("reflect_max_turns", 50),
-                max_chars_per_obs=grsd_cfg.get("reflect_max_chars_per_obs", 1200),
+                max_chars_per_obs=grsd_cfg.get("reflect_max_chars_per_obs", 400),
                 max_concurrency=grsd_cfg.get("judge_max_concurrency", 16),
             )
-            print(f"[GRSD-Reflect] ReflectionJudge API base={reflection_judge.api_base} model={reflection_judge.model} "
+            print(f"[GRSD] ReflectionJudge API base={reflection_judge.api_base} model={reflection_judge.model} "
                   f"max_concurrency={reflection_judge.max_concurrency}")
         else:
-            print("[GRSD-Reflect] ReflectionJudge disabled; external API scoring and reflection GRPO are off")
-        print(f"[GRSD-Reflect] reflect_loss_coef(alpha)={grsd_cfg.get('reflect_loss_coef', 0.1)} "
+            print("[GRSD] ReflectionJudge disabled; external API scoring and reflection GRPO are off")
+        print(f"[GRSD] reflect_loss_coef(alpha)={grsd_cfg.get('reflect_loss_coef', 0.01)} "
               f"reflect_do_sample={grsd_cfg.get('reflect_do_sample', True)}")
-        print(f"[GRSD-Reflect] lambda={grsd_cfg.get('grsd_lambda', 0.5)} eta={grsd_cfg.get('eta', 0.0)} "
+        print(f"[GRSD] lambda={grsd_cfg.get('grsd_lambda', 0.5)} eta={grsd_cfg.get('eta', 0.0)} "
               f"g_hat_max={grsd_cfg.get('g_hat_max', 3.0)} "
               f"warmdown_steps={grsd_cfg.get('warmdown_steps', -1)}")
 

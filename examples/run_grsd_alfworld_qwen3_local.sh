@@ -1,38 +1,43 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# GRSD脚本节点本地训练节点1，测试一下
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR=${REPO_DIR:-$(cd "${SCRIPT_DIR}/.." && pwd)}
-WORKSPACE=${WORKSPACE:-$(dirname "${REPO_DIR}")}
+WORKSPACE=${WORKSPACE:-${REPO_DIR}}
+MODEL_ROOT=${MODEL_ROOT:-${WORKSPACE}/models}
+DATA_ROOT=${DATA_ROOT:-${WORKSPACE}/data}
 
-# Default GRSD experiments use the policy-native reflection variant and
-# turn-level modulation. Keep this original launcher as an explicit ablation:
-# GRSD_VARIANT=original bash examples/run_grsd_alfworld_qwen3_local.sh
-GRSD_VARIANT=${GRSD_VARIANT:-reflect}
+# GRSD is the policy-native reflection method. Legacy names remain aliases so
+# existing launch commands continue to work.
+GRSD_VARIANT=${GRSD_VARIANT:-grsd}
 GRSD_MODULATION_LEVEL=${GRSD_MODULATION_LEVEL:-turn}
 case "${GRSD_VARIANT}" in
-  reflect)
+  grsd|reflect)
     export GRSD_MODULATION_LEVEL
     exec "${REPO_DIR}/examples/run_grsd_reflect_alfworld_qwen3_local.sh" "$@"
     ;;
-  original)
+  external|original)
     ;;
   *)
-    echo "GRSD_VARIANT must be 'original' or 'reflect', got: ${GRSD_VARIANT}" >&2
+    echo "GRSD_VARIANT must be 'grsd' or 'external' (legacy: 'reflect' or 'original'), got: ${GRSD_VARIANT}" >&2
     exit 1
     ;;
 esac
 
-PYTHON_BIN=${PYTHON_BIN:-${WORKSPACE}/venv_echo_megatron/bin/python}
+PYTHON_BIN=${PYTHON_BIN:-python}
+if [[ "${PYTHON_BIN}" != */* ]]; then
+  PYTHON_BIN=$(command -v "${PYTHON_BIN}") || {
+    echo "Python executable not found: ${PYTHON_BIN}" >&2
+    exit 1
+  }
+fi
 
-MODEL_PATH=${MODEL_PATH:-${WORKSPACE}/models/Qwen3-1.7B}
-DATA_DIR=${DATA_DIR:-${WORKSPACE}/data/verl-agent/text}
+MODEL_PATH=${MODEL_PATH:-${MODEL_ROOT}/Qwen3-1.7B}
+DATA_DIR=${DATA_DIR:-${DATA_ROOT}/alfworld/metadata}
 TRAIN_FILE=${TRAIN_FILE:-${DATA_DIR}/train.parquet}
 VAL_FILE=${VAL_FILE:-${DATA_DIR}/test.parquet}
-ALFWORLD_DATA=${ALFWORLD_DATA:-${WORKSPACE}/data/alfworld}
-CHECKPOINT_DIR=${CHECKPOINT_DIR:-${REPO_DIR}/checkpoints/verl_agent_alfworld/grsd_qwen3_1.7b_local_v2}
+ALFWORLD_DATA=${ALFWORLD_DATA:-${DATA_ROOT}/alfworld}
+CHECKPOINT_DIR=${CHECKPOINT_DIR:-${REPO_DIR}/checkpoints/verl_agent_alfworld/external_reflection_qwen3_1.7b}
 
 ENGINE=${ENGINE:-vllm}
 N_GPUS=${N_GPUS:-8}
@@ -77,16 +82,16 @@ JUDGE_API_BASE=${JUDGE_API_BASE:-${LLM_API_BASE:-https://api.openai.com/v1}}
 JUDGE_API_KEY=${JUDGE_API_KEY:-${LLM_API_KEY:-}}
 JUDGE_MODEL=${JUDGE_MODEL:-${LLM_MODEL:-gpt-4o-mini}}
 
-TOTAL_TRAINING_STEPS=${TOTAL_TRAINING_STEPS:-null}
-TOTAL_EPOCHS=${TOTAL_EPOCHS:-240}
+TOTAL_TRAINING_STEPS=${TOTAL_TRAINING_STEPS:-600}
+TOTAL_EPOCHS=${TOTAL_EPOCHS:-600}
 VAL_BEFORE_TRAIN=${VAL_BEFORE_TRAIN:-True}
 TEST_FREQ=${TEST_FREQ:-5}
 SAVE_FREQ=${SAVE_FREQ:-20}
-EXPERIMENT_NAME=${EXPERIMENT_NAME:-GRSD-Qwen3-1.7B-ALFWorld-v2}
+EXPERIMENT_NAME=${EXPERIMENT_NAME:-GRSD-External-Reflection-Ablation-Qwen3-1.7B-ALFWorld}
 TRAINER_LOGGER=${TRAINER_LOGGER:-"['console','wandb']"}
 WANDB_MODE=${WANDB_MODE:-offline}
 WANDB_DIR=${WANDB_DIR:-${WORKSPACE}/wandb}
-WANDB_API_KEY_FILE=${WANDB_API_KEY_FILE:-${WORKSPACE}/.secrets/wandb_api_key}
+WANDB_API_KEY_FILE=${WANDB_API_KEY_FILE:-${REPO_DIR}/.secrets/wandb_api_key}
 if [[ -z "${WANDB_API_KEY:-}" && -f "${WANDB_API_KEY_FILE}" ]]; then
   WANDB_API_KEY=$(<"${WANDB_API_KEY_FILE}")
 fi

@@ -642,7 +642,7 @@ class ActorRolloutRefWorker(Worker):
 
     @register(dispatch_mode=Dispatch.DP_COMPUTE_PROTO)
     def update_reflect_actor(self, data: DataProto):
-        """GRSD-Reflect: alpha-weighted GRPO update over Stage-A reflection tokens."""
+        """GRSD: alpha-weighted GRPO update over Stage-A reflection tokens."""
         # Support all hardwares
         data = data.to(get_torch_device().current_device())
 

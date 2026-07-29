@@ -85,7 +85,8 @@ setup(
     packages=find_packages(where="."),
     license="Apache 2.0",
     author="GRSD contributors",
-    description="GRSD: Group-Relative Self-Distillation for multi-turn agent reinforcement learning",
+    description="GRSD: Group-Reflective Self-Distillation for agentic reinforcement learning",
+    python_requires=">=3.10,<3.13",
     install_requires=install_requires,
     extras_require=extras_require,
     package_data={

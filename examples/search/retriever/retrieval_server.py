@@ -1,5 +1,7 @@
 import json
+import os
 import warnings
+from pathlib import Path
 from typing import List, Optional
 import argparse
 
@@ -347,14 +349,21 @@ def retrieve_endpoint(request: QueryRequest):
 
 if __name__ == "__main__":
 
+    repo_root = Path(__file__).resolve().parents[3]
+    search_asset_root = Path(
+        os.environ.get("SEARCH_ASSET_ROOT", repo_root / "data" / "searchR1")
+    ).expanduser()
     parser = argparse.ArgumentParser(description="Launch the local faiss retriever.")
     parser.add_argument(
-        "--index_path", type=str, default="~/data/searchR1/e5_Flat.index", help="Corpus indexing file."
+        "--index_path",
+        type=str,
+        default=str(search_asset_root / "e5_Flat.index"),
+        help="Corpus indexing file.",
     )
     parser.add_argument(
         "--corpus_path",
         type=str,
-        default="~/data/searchR1/wiki-18.jsonl",
+        default=str(search_asset_root / "wiki-18.jsonl"),
         help="Local corpus file.",
     )
     parser.add_argument("--topk", type=int, default=3, help="Number of retrieved passages for one query.")
@@ -371,8 +380,8 @@ if __name__ == "__main__":
     #    In real usage, you'd parse your CLI arguments or environment variables.
     config = Config(
         retrieval_method=args.retriever_name,  # or "dense"
-        index_path=args.index_path,
-        corpus_path=args.corpus_path,
+        index_path=os.path.expanduser(args.index_path),
+        corpus_path=os.path.expanduser(args.corpus_path),
         retrieval_topk=args.topk,
         faiss_gpu=args.faiss_gpu,
         retrieval_model_path=args.retriever_model,

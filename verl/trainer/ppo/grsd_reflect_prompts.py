@@ -1,5 +1,5 @@
 """
-GRSD-Reflect prompts: the SINGLE source of truth for every prompt used by the
+GRSD prompts: the single source of truth for every prompt used by the
 policy-native two-stage skill construction and its rubric judge.
 
 Three prompt families live here:
