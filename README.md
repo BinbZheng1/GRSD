@@ -1,8 +1,10 @@
 <div align="center">
 
-<img src="docs/grsd/grsd_flow.gif" alt="Animated GRSD flow from verified rollout groups to turn-level credit" width="100%">
+<img src="docs/grsd/grsd_flow.gif" alt="Animated GRSD flow for agentic reinforcement learning" width="100%">
 
-<h2>Fine-grained credit assignment from an agent's own verified experience</h2>
+<h1>Group-Reflective Self-Distillation for Agentic Reinforcement Learning</h1>
+
+<p><strong>Policy-native reflection and turn-level credit assignment from verified on-policy experience</strong></p>
 
 <p>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-2ea44f?style=flat-square" alt="License: Apache 2.0"></a>
