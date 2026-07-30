@@ -17,14 +17,36 @@
 <p><strong>Reflect on verified rollouts. Contrast success with failure. Distill the difference into turn-level credit.</strong></p>
 
 <p>
-  <a href="#overview">Overview</a> |
-  <a href="#method">Method</a> |
-  <a href="#results">Results</a> |
-  <a href="#reproduce">Reproduce</a> |
-  <a href="#launchers">Launchers</a>
+  <a href="#quickstart">Quickstart</a> &nbsp;·&nbsp;
+  <a href="#overview">Overview</a> &nbsp;·&nbsp;
+  <a href="#method">Method</a> &nbsp;·&nbsp;
+  <a href="#results">Results</a> &nbsp;·&nbsp;
+  <a href="#repository-layout">Layout</a> &nbsp;·&nbsp;
+  <a href="#reproduce">Reproduce</a> &nbsp;·&nbsp;
+  <a href="#launchers">Launchers</a> &nbsp;·&nbsp;
+  <a href="#checkpoints-and-evaluation">Checkpoints</a> &nbsp;·&nbsp;
+  <a href="#verification">Verification</a>
 </p>
 
 </div>
+
+## Quickstart
+
+```bash
+# 1. environment
+conda create -n grsd python=3.10 -y && conda activate grsd
+pip install vllm==0.11.0 && pip install -e .
+
+# 2. one task (ALFWorld)
+pip install gymnasium==0.29.1 stable-baselines3==2.6.0 alfworld
+export ALFWORLD_DATA="$PWD/data/alfworld" && alfworld-download -f
+bash examples/data_preprocess/prepare_alfworld.sh
+
+# 3. train
+bash examples/run_grsd_alfworld_qwen3_local.sh
+```
+
+<div align="center"><sub>Shortest path from a clean machine to an ALFWorld GRSD run. Full instructions in <a href="#reproduce">Reproduce</a>.</sub></div>
 
 ## Overview
 
@@ -138,16 +160,16 @@ GRSD transfers beyond the in-domain ALFWorld training distribution and improves 
 
 ```text
 GRSD/
-|-- agent_system/                 # ALFWorld, SearchQA, and WebShop environments
-|-- examples/
-|   |-- data_preprocess/           # task download and Parquet preparation
-|   |-- search/retriever/          # local SearchQA retrieval service
-|   `-- run_grsd_*_local.sh        # complete 3 task x 3 backbone matrix
-|-- verl/trainer/ppo/              # GRSD trainers, reflection, and advantage logic
-|-- skills/                        # task skill prompts and mappings
-|-- docs/grsd/                     # figures used in the paper and this README
-|-- scripts/                       # checkpoint conversion and merging utilities
-`-- tests/                         # focused GRSD regression tests
+├── agent_system/                # ALFWorld, SearchQA, and WebShop environments
+├── examples/
+│   ├── data_preprocess/         # task download and Parquet preparation
+│   ├── search/retriever/        # local SearchQA retrieval service
+│   └── run_grsd_*_local.sh      # complete 3 task x 3 backbone matrix
+├── verl/trainer/ppo/            # GRSD trainers, reflection, and advantage logic
+├── skills/                      # task skill prompts and mappings
+├── docs/grsd/                   # figures used in the paper and this README
+├── scripts/                     # checkpoint conversion and merging utilities
+└── tests/                       # focused GRSD regression tests
 ```
 
 ## Reproduce
@@ -251,7 +273,16 @@ bash examples/run_grsd_search_qwen2.5_3b_local.sh
 bash examples/run_grsd_webshop_qwen2.5_7b_local.sh
 ```
 
-The paper defaults are group size 8, `GRSD_LAMBDA=0.5`, `GRSD_G_HAT_MAX=0.2`, `GRSD_ETA=0`, and `REFLECT_LOSS_COEF=0.01`. ALFWorld Qwen3-1.7B defaults to 600 policy updates; the other launchers default to 240. Every setting can be overridden with an environment variable or appended Hydra arguments.
+The paper defaults are summarized below; every setting can be overridden with an environment variable or appended Hydra arguments.
+
+| Setting | Default | Meaning |
+| --- | :--- | --- |
+| Group size | `8` | Rollouts per prompt used for group-level contrast |
+| `GRSD_LAMBDA` | `0.5` | Self-distillation strength |
+| `GRSD_G_HAT_MAX` | `0.2` | Bound on the turn-level modulation |
+| `GRSD_ETA` | `0` | Dead-zone threshold below which the turn-level gate is inactive |
+| `REFLECT_LOSS_COEF` | `0.01` | Reflection-loss weight `alpha` |
+| Policy updates | `600` / `240` | ALFWorld Qwen3-1.7B / all other launchers |
 
 To reproduce the external-reflection ablation:
 
