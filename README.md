@@ -308,6 +308,12 @@ for script in examples/run_grsd_*local.sh examples/run_grsd_reflect_*local*.sh; 
 
 The launchers also validate required data/model paths, CUDA visibility, and (when enabled) the judge or SearchQA retriever endpoint before starting Ray.
 
+When a run fails for environment reasons, [`scripts/diagnose.py`](scripts/diagnose.py) reports the OS, hardware, Python, pip, and network state in one pass:
+
+```bash
+python scripts/diagnose.py
+```
+
 ## Acknowledgements
 
 GRSD builds on [veRL](https://github.com/volcengine/verl), [verl-agent](https://github.com/langfengQ/verl-agent), [ALFWorld](https://github.com/alfworld/alfworld), [WebShop](https://github.com/princeton-nlp/WebShop), and [Search-R1](https://github.com/PeterGriffinJin/Search-R1). We also acknowledge the public [SDAR](https://github.com/ZJU-REAL/SDAR) repository, which provided an important implementation reference for agentic self-distillation. We thank the authors and contributors of these projects.
