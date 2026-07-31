@@ -9,15 +9,13 @@
 <p>
   <a href="https://arxiv.org/pdf/2607.28076"><img src="https://img.shields.io/badge/arXiv-2607.28076-B31B1B?style=flat-square&logo=arxiv&logoColor=white" alt="arXiv: 2607.28076"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-2ea44f?style=flat-square" alt="License: Apache 2.0"></a>
-  <img src="https://img.shields.io/badge/Python-3.10%2B-3776ab?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+">
-  <img src="https://img.shields.io/badge/Tasks-3-d45d52?style=flat-square" alt="Three agentic tasks">
-  <img src="https://img.shields.io/badge/Backbones-3-4f9d78?style=flat-square" alt="Three model backbones">
   <img src="https://img.shields.io/github/last-commit/BinbZheng1/GRSD?style=flat-square&color=4c8fbf" alt="Last commit">
 </p>
 
 <p><strong>Reflect on verified rollouts. Contrast success with failure. Distill the difference into turn-level credit.</strong></p>
 
 <p>
+  <a href="#news">News</a> &nbsp;·&nbsp;
   <a href="#quickstart">Quickstart</a> &nbsp;·&nbsp;
   <a href="#overview">Overview</a> &nbsp;·&nbsp;
   <a href="#method">Method</a> &nbsp;·&nbsp;
@@ -31,7 +29,13 @@
 
 </div>
 
-## Quickstart
+<a id="news"></a>
+## 🔥 News
+
+- **2026.07.30** — We have open-sourced the official GRSD implementation, and the paper is now available on [arXiv](https://arxiv.org/abs/2607.28076).
+
+<a id="quickstart"></a>
+## ⚡ Quickstart
 
 ```bash
 # 1. environment
@@ -49,7 +53,8 @@ bash examples/run_grsd_alfworld_qwen3_local.sh
 
 <div align="center"><sub>Shortest path from a clean machine to an ALFWorld GRSD run. Full instructions in <a href="#reproduce">Reproduce</a>.</sub></div>
 
-## Overview
+<a id="overview"></a>
+## 🔎 Overview
 
 GRSD lets an agent learn fine-grained credit from its own verified experience. For each prompt, the policy reflects on every rollout, contrasts successful and failed reflections into compact group-level `DO / AVOID` guidance, and uses that guidance as privileged context for turn-level self-distillation.
 
@@ -74,7 +79,8 @@ Terminal rewards tell an agent whether a trajectory succeeded, but not which of 
 | A single rollout mixes useful and incidental behavior | A stop-gradient snapshot contrasts successful and failed rollouts for the same prompt. |
 | Privileged training context can leak into deployment | The guidance is used only to construct training signals; the deployed agent receives only the original task prompt. |
 
-## Method
+<a id="method"></a>
+## 🧠 Method
 
 <div align="center">
   <img src="docs/grsd/pipeline.png" alt="GRSD pipeline: policy-native reflection, group-level guidance construction, and turn-level self-distillation" width="98%">
@@ -90,7 +96,8 @@ Terminal rewards tell an agent whether a trajectory succeeded, but not which of 
 
 The policy-native implementation is the official **GRSD** variant and is selected by default. The legacy `verl.trainer.main_grsd` entry point is retained as the **external-reflection ablation** (`GRSD_VARIANT=external`) for comparisons and backward compatibility.
 
-## Results
+<a id="results"></a>
+## 📊 Results
 
 The paper evaluates three long-horizon environments and three instruction-tuned backbones. Values below are the reported per-environment averages; ALFWorld and SearchQA are percentages, while WebShop reports normalized score / success rate.
 
@@ -119,7 +126,7 @@ The paper evaluates three long-horizon environments and three instruction-tuned 
 | Qwen2.5-3B-Instruct | **86.7** | **46.2** | **86.9 / 76.5** |
 | Qwen2.5-7B-Instruct | **92.2** | **50.5** | **91.6 / 82.8** |
 
-### Training dynamics
+### 📈 Training dynamics
 
 On ALFWorld with Qwen3-1.7B, GRSD continues to improve after the baselines begin to plateau and reaches the highest validation success rate. It also maintains a smaller absolute mean teacher-student gap than Skill-SD and SDAR, consistent with more compatible guidance and smoother late-stage optimization.
 
@@ -127,7 +134,7 @@ On ALFWorld with Qwen3-1.7B, GRSD continues to improve after the baselines begin
   <img src="docs/grsd/training_dynamics.png" alt="Training dynamics on ALFWorld with Qwen3-1.7B" width="94%">
 </div>
 
-### Reflection strategy
+### 🪞 Reflection strategy
 
 Policy-native reflections are compared with external-model reflection generation. The official GRSD pipeline achieves higher late-stage success while maintaining a smaller-magnitude teacher-student gap, indicating guidance that better matches the policy's capability boundary.
 
@@ -138,7 +145,7 @@ Policy-native reflections are compared with external-model reflection generation
   </tr>
 </table>
 
-### Hyperparameter sensitivity
+### 🎛️ Hyperparameter sensitivity
 
 The default settings use a moderate reflection-loss weight and self-distillation strength. The paper sweeps both to expose the stability / credit-shaping trade-off.
 
@@ -149,7 +156,7 @@ The default settings use a moderate reflection-loss weight and self-distillation
   </tr>
 </table>
 
-### Cross-domain generalization
+### 🌐 Cross-domain generalization
 
 GRSD transfers beyond the in-domain ALFWorld training distribution and improves the Unseen task types, with particularly clear gains on Cool and Pick2.
 
@@ -157,7 +164,8 @@ GRSD transfers beyond the in-domain ALFWorld training distribution and improves 
   <img src="docs/grsd/figures/cross_domain_generalization.png" alt="Cross-domain generalization on ALFWorld Unseen" width="86%">
 </div>
 
-## Repository layout
+<a id="repository-layout"></a>
+## 🗂️ Repository layout
 
 ```text
 GRSD/
@@ -173,7 +181,8 @@ GRSD/
 └── tests/                       # focused GRSD regression tests
 ```
 
-## Reproduce
+<a id="reproduce"></a>
+## 🛠️ Reproduce
 
 The public launchers use repository-relative defaults. Set `MODEL_ROOT`, `DATA_ROOT`, `MODEL_PATH`, `DATA_DIR`, `CHECKPOINT_DIR`, and `PYTHON_BIN` to adapt them to your machine; no absolute path from the development environment is required.
 
@@ -256,7 +265,7 @@ Set `JUDGE_ENABLED=false` to remove the auxiliary reflection reward and loss whi
 </details>
 
 <a id="launchers"></a>
-## Launchers
+## 🚀 Launchers
 
 There is one official GRSD launcher for every combination of the three tasks and three backbones. Each defaults to `GRSD_VARIANT=grsd` and can be overridden without editing the script.
 
@@ -293,11 +302,13 @@ GRSD_VARIANT=external bash examples/run_grsd_alfworld_qwen3_local.sh
 
 `GRSD_VARIANT=reflect` and `GRSD_VARIANT=original` remain accepted as legacy aliases for `grsd` and `external`.
 
-## Checkpoints and evaluation
+<a id="checkpoints-and-evaluation"></a>
+## 💾 Checkpoints and evaluation
 
 Training outputs default to `checkpoints/`. Use [`scripts/model_merger.py`](scripts/model_merger.py) to merge FSDP or Megatron shards into a Hugging Face model directory. Evaluation uses the task-specific environment wrappers and the same plain prompt format used by training.
 
-## Verification
+<a id="verification"></a>
+## ✅ Verification
 
 Run the focused GRSD regression suite before a long GPU job:
 
@@ -315,11 +326,11 @@ When a run fails for environment reasons, [`scripts/diagnose.py`](scripts/diagno
 python scripts/diagnose.py
 ```
 
-## Acknowledgements
+## 🙏 Acknowledgements
 
 GRSD builds on [veRL](https://github.com/volcengine/verl), [verl-agent](https://github.com/langfengQ/verl-agent), [ALFWorld](https://github.com/alfworld/alfworld), [WebShop](https://github.com/princeton-nlp/WebShop), and [Search-R1](https://github.com/PeterGriffinJin/Search-R1). We also acknowledge the public [SDAR](https://github.com/ZJU-REAL/SDAR) repository, which provided an important implementation reference for agentic self-distillation. We thank the authors and contributors of these projects.
 
-## Citation
+## 📝 Citation
 
 ```bibtex
 @misc{zheng2026groupreflectiveselfdistillationagenticreinforcement,
