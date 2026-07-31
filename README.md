@@ -7,6 +7,7 @@
 <p><strong>Policy-native reflection and turn-level credit assignment from verified on-policy experience</strong></p>
 
 <p>
+  <a href="https://arxiv.org/pdf/2607.28076"><img src="https://img.shields.io/badge/arXiv-2607.28076-B31B1B?style=flat-square&logo=arxiv&logoColor=white" alt="arXiv: 2607.28076"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-2ea44f?style=flat-square" alt="License: Apache 2.0"></a>
   <img src="https://img.shields.io/badge/Python-3.10%2B-3776ab?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/Tasks-3-d45d52?style=flat-square" alt="Three agentic tasks">
@@ -280,6 +281,20 @@ The launchers also validate required data/model paths, CUDA visibility, and (whe
 ## Acknowledgements
 
 GRSD builds on [veRL](https://github.com/volcengine/verl), [verl-agent](https://github.com/langfengQ/verl-agent), [ALFWorld](https://github.com/alfworld/alfworld), [WebShop](https://github.com/princeton-nlp/WebShop), and [Search-R1](https://github.com/PeterGriffinJin/Search-R1). We also acknowledge the public [SDAR](https://github.com/ZJU-REAL/SDAR) repository, which provided an important implementation reference for agentic self-distillation. We thank the authors and contributors of these projects.
+
+## Citation
+
+```bibtex
+@misc{zheng2026groupreflectiveselfdistillationagenticreinforcement,
+      title={Group-Reflective Self-Distillation for Agentic Reinforcement Learning},
+      author={Binbin Zheng and Zijun Xie and Guanqun Zhao and Enlei Gong and Xing Ma and Xiaoliang Fu and Zeyu Chen},
+      year={2026},
+      eprint={2607.28076},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2607.28076},
+}
+```
 
 <div align="center">
   <sub>Apache-2.0 | Research code | Training-time privileged context, inference-time plain prompts</sub>
